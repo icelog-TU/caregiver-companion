@@ -59,7 +59,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         await refreshRole();
       }
     } catch (err) {
-      setError("登入失敗，請確認 Email/密碼 / Login gagal, periksa email/kata sandi");
+      const code = (err as AuthError).code ?? "unknown";
+      setError(`登入失敗 (${code})，請確認 Email/密碼 / Login gagal, periksa email/kata sandi`);
       console.error(err);
     } finally {
       setBusy(false);
@@ -78,7 +79,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       await joinWithCode(uid, code.trim().toUpperCase());
       await refreshRole();
     } catch (err) {
-      setError("代碼錯誤，請確認後再試一次 / Kode salah, coba lagi");
+      const code = (err as AuthError).code ?? "unknown";
+      setError(`代碼錯誤 (${code})，請確認後再試一次 / Kode salah, coba lagi`);
       console.error(err);
     } finally {
       setBusy(false);

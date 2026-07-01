@@ -3,6 +3,7 @@
 import {
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -23,9 +24,24 @@ const memberRef = (uid: string) => doc(db, "families", FAMILY_ID, "members", uid
 const codeRef = (code: string) => doc(db, "families", FAMILY_ID, "codeIndex", code);
 
 export async function bootstrapOwner(uid: string): Promise<void> {
-  const fam = await getDoc(familyRef());
-  if (!fam.exists()) {
+  // The family doc isn't readable until a member doc exists, so claim both
+  // by writing them directly rather than reading first. Security rules reject
+  // the family write for anyone but the original owner and reject the member
+  // write for anyone who isn't that same uid, so this stays safe for repeat
+  // logins and for non-owners who reach this code path by mistake.
+  try {
     await setDoc(familyRef(), { ownerUid: uid, createdAt: serverTimestamp() });
+  } catch {
+    // Family already belongs to someone else (or to this uid already) - ignore.
+  }
+  try {
+    await setDoc(memberRef(uid), { role: "owner", joinedAt: serverTimestamp() });
+  } catch {
+    // Not the legitimate owner of this family - stop, do not seed data.
+    return;
+  }
+  const existingRules = await getDocs(collection(db, "families", FAMILY_ID, "rules"));
+  if (existingRules.empty) {
     await Promise.all(
       defaultRules.map((rule, index) =>
         setDoc(doc(db, "families", FAMILY_ID, "rules", rule.id), {
@@ -37,10 +53,6 @@ export async function bootstrapOwner(uid: string): Promise<void> {
         })
       )
     );
-  }
-  const mem = await getDoc(memberRef(uid));
-  if (!mem.exists()) {
-    await setDoc(memberRef(uid), { role: "owner", joinedAt: serverTimestamp() });
   }
 }
 
