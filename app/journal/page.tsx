@@ -9,16 +9,11 @@ import {
   type JournalEntry,
 } from "@/lib/storage";
 
-const moodOptions = [
-  { value: "good", zh: "很好", id_lang: "Baik", emoji: "😊" },
-  { value: "okay", zh: "普通", id_lang: "Biasa", emoji: "😐" },
-  { value: "poor", zh: "不好", id_lang: "Kurang", emoji: "😔" },
-] as const;
-
-const appetiteOptions = [
-  { value: "good", zh: "胃口好", id_lang: "Nafsu makan baik", emoji: "🍽️" },
-  { value: "okay", zh: "普通", id_lang: "Biasa", emoji: "🥄" },
-  { value: "poor", zh: "沒食慾", id_lang: "Tidak nafsu makan", emoji: "😶" },
+const choreOptions = [
+  { key: "kitchenClean", zh: "廚房清潔", id_lang: "Bersihkan dapur", emoji: "🍳" },
+  { key: "livingRoomClean", zh: "客廳/餐廳整理", id_lang: "Rapikan ruang tamu/makan", emoji: "🛋️" },
+  { key: "linlinBathroomClean", zh: "琳琳的浴室清潔", id_lang: "Bersihkan kamar mandi Linlin", emoji: "🛁" },
+  { key: "ownBathroomClean", zh: "自己的浴室清潔", id_lang: "Bersihkan kamar mandi sendiri", emoji: "🚿" },
 ] as const;
 
 function today() {
@@ -30,18 +25,22 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("zh-TW", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
 }
 
+const emptyForm: Omit<JournalEntry, "id" | "createdAt"> = {
+  date: today(),
+  lunch: "",
+  dinner: "",
+  play: "",
+  kitchenClean: false,
+  livingRoomClean: false,
+  linlinBathroomClean: false,
+  ownBathroomClean: false,
+  notes: "",
+};
+
 export default function JournalPage() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<Omit<JournalEntry, "id" | "createdAt">>({
-    date: today(),
-    temperature: "",
-    mood: "good",
-    appetite: "good",
-    medication: "",
-    activities: "",
-    notes: "",
-  });
+  const [form, setForm] = useState<Omit<JournalEntry, "id" | "createdAt">>(emptyForm);
 
   useEffect(() => {
     setEntries(getJournalEntries());
@@ -57,7 +56,7 @@ export default function JournalPage() {
     saveJournalEntry(entry);
     setEntries(getJournalEntries());
     setShowForm(false);
-    setForm({ date: today(), temperature: "", mood: "good", appetite: "good", medication: "", activities: "", notes: "" });
+    setForm(emptyForm);
   }
 
   function handleDelete(id: string) {
@@ -108,92 +107,75 @@ export default function JournalPage() {
                 />
               </div>
 
-              {/* Temperature */}
+              {/* Lunch */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  體溫 <span className="text-gray-400 font-normal">/ Suhu Tubuh (°C)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="例如 36.8 / contoh 36.8"
-                  value={form.temperature}
-                  onChange={(e) => setForm({ ...form, temperature: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
-              </div>
-
-              {/* Mood */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  精神狀態 <span className="text-gray-400 font-normal">/ Kondisi Mental</span>
-                </label>
-                <div className="flex gap-2">
-                  {moodOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setForm({ ...form, mood: opt.value })}
-                      className={`flex-1 py-2 rounded-xl border text-sm transition-colors ${
-                        form.mood === opt.value
-                          ? "bg-green-600 text-white border-green-600"
-                          : "border-gray-200 text-gray-600 hover:border-green-400"
-                      }`}
-                    >
-                      {opt.emoji} {opt.zh}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Appetite */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  食慾 <span className="text-gray-400 font-normal">/ Nafsu Makan</span>
-                </label>
-                <div className="flex gap-2">
-                  {appetiteOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setForm({ ...form, appetite: opt.value })}
-                      className={`flex-1 py-2 rounded-xl border text-sm transition-colors ${
-                        form.appetite === opt.value
-                          ? "bg-green-600 text-white border-green-600"
-                          : "border-gray-200 text-gray-600 hover:border-green-400"
-                      }`}
-                    >
-                      {opt.emoji} {opt.zh}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Medication */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  用藥記錄 <span className="text-gray-400 font-normal">/ Catatan Obat</span>
+                  🍱 午餐 <span className="text-gray-400 font-normal">/ Makan Siang</span>
                 </label>
                 <textarea
-                  placeholder="藥名、時間、劑量... / Nama obat, waktu, dosis..."
-                  value={form.medication}
-                  onChange={(e) => setForm({ ...form, medication: e.target.value })}
+                  placeholder="今天煮了什麼給琳琳吃... / Apa yang dimasak untuk Linlin..."
+                  value={form.lunch}
+                  onChange={(e) => setForm({ ...form, lunch: e.target.value })}
                   rows={2}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
                 />
               </div>
 
-              {/* Activities */}
+              {/* Dinner */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  今日活動 <span className="text-gray-400 font-normal">/ Aktivitas Hari Ini</span>
+                  🍱 晚餐 <span className="text-gray-400 font-normal">/ Makan Malam</span>
                 </label>
                 <textarea
-                  placeholder="今天做了什麼... / Aktivitas yang dilakukan..."
-                  value={form.activities}
-                  onChange={(e) => setForm({ ...form, activities: e.target.value })}
+                  placeholder="今天煮了什麼給琳琳吃... / Apa yang dimasak untuk Linlin..."
+                  value={form.dinner}
+                  onChange={(e) => setForm({ ...form, dinner: e.target.value })}
                   rows={2}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
                 />
+              </div>
+
+              {/* Play */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  🎈 陪玩 <span className="text-gray-400 font-normal">/ Bermain Bersama</span>
+                </label>
+                <textarea
+                  placeholder="今天陪琳琳做了什麼活動... / Aktivitas bermain hari ini..."
+                  value={form.play}
+                  onChange={(e) => setForm({ ...form, play: e.target.value })}
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
+                />
+              </div>
+
+              {/* Chores */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  🧹 環境維持 <span className="text-gray-400 font-normal">/ Kebersihan Lingkungan</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {choreOptions.map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setForm({ ...form, [opt.key]: !form[opt.key] })}
+                      className={`flex items-center gap-2 py-2 px-3 rounded-xl border text-sm transition-colors text-left ${
+                        form[opt.key]
+                          ? "bg-green-600 text-white border-green-600"
+                          : "border-gray-200 text-gray-600 hover:border-green-400"
+                      }`}
+                    >
+                      <span>{form[opt.key] ? "✅" : opt.emoji}</span>
+                      <span className="leading-tight">
+                        <span className="block">{opt.zh}</span>
+                        <span className={`block text-xs ${form[opt.key] ? "text-green-100" : "text-gray-400"}`}>
+                          {opt.id_lang}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Notes */}
@@ -231,8 +213,7 @@ export default function JournalPage() {
       ) : (
         <div className="space-y-4">
           {entries.map((entry) => {
-            const mood = moodOptions.find((m) => m.value === entry.mood)!;
-            const appetite = appetiteOptions.find((a) => a.value === entry.appetite)!;
+            const doneChores = choreOptions.filter((opt) => entry[opt.key]);
             return (
               <div key={entry.id} className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
                 <div className="bg-green-600 px-4 py-3 flex items-center justify-between">
@@ -247,32 +228,34 @@ export default function JournalPage() {
                   </button>
                 </div>
                 <div className="p-4 space-y-3">
-                  <div className="flex gap-4">
-                    {entry.temperature && (
-                      <div className="flex items-center gap-1.5 bg-orange-50 rounded-lg px-3 py-1.5">
-                        <span>🌡️</span>
-                        <span className="text-sm font-semibold text-orange-700">{entry.temperature}°C</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1.5 bg-blue-50 rounded-lg px-3 py-1.5">
-                      <span>{mood.emoji}</span>
-                      <span className="text-sm text-blue-700">{mood.zh}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 bg-purple-50 rounded-lg px-3 py-1.5">
-                      <span>{appetite.emoji}</span>
-                      <span className="text-sm text-purple-700">{appetite.zh}</span>
-                    </div>
-                  </div>
-                  {entry.medication && (
+                  {entry.lunch && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">用藥</p>
-                      <p className="text-sm text-gray-700 mt-0.5">{entry.medication}</p>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">🍱 午餐</p>
+                      <p className="text-sm text-gray-700 mt-0.5">{entry.lunch}</p>
                     </div>
                   )}
-                  {entry.activities && (
+                  {entry.dinner && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">活動</p>
-                      <p className="text-sm text-gray-700 mt-0.5">{entry.activities}</p>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">🍱 晚餐</p>
+                      <p className="text-sm text-gray-700 mt-0.5">{entry.dinner}</p>
+                    </div>
+                  )}
+                  {entry.play && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">🎈 陪玩</p>
+                      <p className="text-sm text-gray-700 mt-0.5">{entry.play}</p>
+                    </div>
+                  )}
+                  {doneChores.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {doneChores.map((opt) => (
+                        <span
+                          key={opt.key}
+                          className="flex items-center gap-1 bg-green-50 text-green-700 rounded-lg px-2.5 py-1 text-xs"
+                        >
+                          ✅ {opt.zh}
+                        </span>
+                      ))}
                     </div>
                   )}
                   {entry.notes && (

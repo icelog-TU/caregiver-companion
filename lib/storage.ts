@@ -3,11 +3,13 @@
 export interface JournalEntry {
   id: string;
   date: string;
-  temperature: string;
-  mood: "good" | "okay" | "poor";
-  appetite: "good" | "okay" | "poor";
-  medication: string;
-  activities: string;
+  lunch: string;
+  dinner: string;
+  play: string;
+  kitchenClean: boolean;
+  livingRoomClean: boolean;
+  linlinBathroomClean: boolean;
+  ownBathroomClean: boolean;
   notes: string;
   createdAt: string;
 }
