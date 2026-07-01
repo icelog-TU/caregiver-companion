@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
 import {
-  getJournalEntries,
-  saveJournalEntry,
+  watchJournal,
+  addJournalEntry,
   deleteJournalEntry,
-  generateId,
-  type JournalEntry,
-} from "@/lib/storage";
+  type FamilyJournalEntry,
+} from "@/lib/family";
 
 const choreOptions = [
   { key: "kitchenClean", zh: "廚房清潔", id_lang: "Bersihkan dapur", emoji: "🍳" },
@@ -25,7 +25,7 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("zh-TW", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
 }
 
-const emptyForm: Omit<JournalEntry, "id" | "createdAt"> = {
+const emptyForm: Omit<FamilyJournalEntry, "id" | "createdAt" | "createdByUid"> = {
   date: today(),
   lunch: "",
   dinner: "",
@@ -38,31 +38,28 @@ const emptyForm: Omit<JournalEntry, "id" | "createdAt"> = {
 };
 
 export default function JournalPage() {
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const { user, role } = useAuth();
+  const canWrite = role === "owner" || role === "caregiver";
+  const [entries, setEntries] = useState<FamilyJournalEntry[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<Omit<JournalEntry, "id" | "createdAt">>(emptyForm);
+  const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
-    setEntries(getJournalEntries());
+    const unsub = watchJournal(setEntries);
+    return unsub;
   }, []);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const entry: JournalEntry = {
-      ...form,
-      id: generateId(),
-      createdAt: new Date().toISOString(),
-    };
-    saveJournalEntry(entry);
-    setEntries(getJournalEntries());
+    if (!user) return;
+    await addJournalEntry({ ...form, createdByUid: user.uid });
     setShowForm(false);
     setForm(emptyForm);
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     if (confirm("確定刪除這筆記錄？\nYakin ingin menghapus catatan ini?")) {
-      deleteJournalEntry(id);
-      setEntries(getJournalEntries());
+      await deleteJournalEntry(id);
     }
   }
 
@@ -73,12 +70,14 @@ export default function JournalPage() {
           <h1 className="text-xl font-bold text-gray-800">📓 工作日誌</h1>
           <p className="text-sm text-gray-500">Jurnal Kerja</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-green-700 transition-colors"
-        >
-          + 新增記錄
-        </button>
+        {canWrite && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-green-700 transition-colors"
+          >
+            + 新增記錄
+          </button>
+        )}
       </div>
 
       {/* Form modal */}
@@ -220,12 +219,14 @@ export default function JournalPage() {
                   <div>
                     <p className="text-white font-semibold text-sm">{formatDate(entry.date)}</p>
                   </div>
-                  <button
-                    onClick={() => handleDelete(entry.id)}
-                    className="text-green-200 hover:text-white text-xs"
-                  >
-                    刪除
-                  </button>
+                  {canWrite && (
+                    <button
+                      onClick={() => handleDelete(entry.id)}
+                      className="text-green-200 hover:text-white text-xs"
+                    >
+                      刪除
+                    </button>
+                  )}
                 </div>
                 <div className="p-4 space-y-3">
                   {entry.lunch && (

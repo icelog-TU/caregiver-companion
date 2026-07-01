@@ -1,33 +1,34 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getMessages, saveMessage, generateId, type Message } from "@/lib/storage";
+import { useAuth } from "@/lib/auth-context";
+import { watchMessages, sendMessage, type FamilyMessage, type Role } from "@/lib/family";
+
+const roleLabel: Record<Role, string> = {
+  owner: "👨‍👩‍👧 家長",
+  caregiver: "👩‍⚕️ 看護",
+  family: "🏠 家人",
+};
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { user, role } = useAuth();
+  const [messages, setMessages] = useState<FamilyMessage[]>([]);
   const [text, setText] = useState("");
-  const [sender, setSender] = useState<"parent" | "caregiver">("parent");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setMessages(getMessages());
+    const unsub = watchMessages(setMessages);
+    return unsub;
   }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function handleSend(e: React.FormEvent) {
+  async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!text.trim()) return;
-    const msg: Message = {
-      id: generateId(),
-      sender,
-      text: text.trim(),
-      timestamp: new Date().toISOString(),
-    };
-    saveMessage(msg);
-    setMessages(getMessages());
+    if (!text.trim() || !user || !role) return;
+    await sendMessage({ text: text.trim(), senderUid: user.uid, senderRole: role });
     setText("");
   }
 
@@ -48,33 +49,6 @@ export default function ChatPage() {
         <p className="text-sm text-gray-500">Komunikasi</p>
       </div>
 
-      {/* Sender toggle */}
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-        <p className="text-xs text-gray-500 mb-2">我是 / Saya adalah:</p>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setSender("parent")}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-              sender === "parent"
-                ? "bg-purple-600 text-white"
-                : "bg-white border border-gray-200 text-gray-600"
-            }`}
-          >
-            👨‍👩‍👧 家長 (Orang Tua)
-          </button>
-          <button
-            onClick={() => setSender("caregiver")}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-              sender === "caregiver"
-                ? "bg-teal-600 text-white"
-                : "bg-white border border-gray-200 text-gray-600"
-            }`}
-          >
-            👩‍⚕️ 看護 (Perawat)
-          </button>
-        </div>
-      </div>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.length === 0 ? (
@@ -85,19 +59,19 @@ export default function ChatPage() {
           </div>
         ) : (
           messages.map((msg) => {
-            const isParent = msg.sender === "parent";
+            const isMe = msg.senderUid === user?.uid;
             return (
               <div
                 key={msg.id}
-                className={`flex ${isParent ? "justify-end" : "justify-start"}`}
+                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
               >
-                <div className={`max-w-[80%] ${isParent ? "items-end" : "items-start"} flex flex-col gap-1`}>
+                <div className={`max-w-[80%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-1`}>
                   <span className="text-xs text-gray-400 px-1">
-                    {isParent ? "👨‍👩‍👧 家長" : "👩‍⚕️ 看護"} · {formatTime(msg.timestamp)}
+                    {roleLabel[msg.senderRole]} · {formatTime(msg.createdAt)}
                   </span>
                   <div
                     className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                      isParent
+                      isMe
                         ? "bg-purple-600 text-white rounded-tr-sm"
                         : "bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm"
                     }`}
@@ -126,16 +100,14 @@ export default function ChatPage() {
               handleSend(e);
             }
           }}
-          placeholder={sender === "parent" ? "輸入訊息..." : "Ketik pesan..."}
+          placeholder="輸入訊息... / Ketik pesan..."
           rows={2}
           className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
         />
         <button
           type="submit"
           disabled={!text.trim()}
-          className={`px-4 py-2 rounded-xl text-white text-sm font-semibold transition-colors flex-shrink-0 ${
-            sender === "parent" ? "bg-purple-600 hover:bg-purple-700" : "bg-teal-600 hover:bg-teal-700"
-          } disabled:opacity-40`}
+          className="px-4 py-2 rounded-xl text-white text-sm font-semibold transition-colors flex-shrink-0 bg-purple-600 hover:bg-purple-700 disabled:opacity-40"
         >
           送出
         </button>

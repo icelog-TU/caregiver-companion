@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
+import { AuthProvider } from "@/lib/auth-context";
+import AuthGate from "@/components/AuthGate";
 
 export const metadata: Metadata = {
   title: "照護助手 | Asisten Perawat",
@@ -17,10 +18,11 @@ export default function RootLayout({
       <body className="bg-rose-50 min-h-screen antialiased">
         <div className="max-w-2xl mx-auto min-h-screen bg-white shadow-sm">
           <main className="pb-24 md:pb-8 md:pt-16">
-            {children}
+            <AuthProvider>
+              <AuthGate>{children}</AuthGate>
+            </AuthProvider>
           </main>
         </div>
-        <Navbar />
       </body>
     </html>
   );

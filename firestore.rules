@@ -1,0 +1,81 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function memberPath(uid) {
+      return /databases/$(database)/documents/families/default/members/$(uid);
+    }
+
+    function isMember() {
+      return isSignedIn() && exists(memberPath(request.auth.uid));
+    }
+
+    function role() {
+      return get(memberPath(request.auth.uid)).data.role;
+    }
+
+    function isOwner() {
+      return isMember() && role() == 'owner';
+    }
+
+    function isOwnerOrCaregiver() {
+      return isMember() && (role() == 'owner' || role() == 'caregiver');
+    }
+
+    match /families/default {
+      allow get: if isOwner();
+
+      // One-time bootstrap: the first non-anonymous user to sign in claims ownership.
+      allow create: if isSignedIn() &&
+        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        request.resource.data.ownerUid == request.auth.uid;
+
+      allow update: if isOwner() && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      match /members/{uid} {
+        allow get: if isSignedIn() && (request.auth.uid == uid || isOwner());
+        allow list: if isOwner();
+
+        allow create: if isSignedIn() && request.auth.uid == uid && (
+          (
+            request.resource.data.role == 'owner' &&
+            get(/databases/$(database)/documents/families/default).data.ownerUid == request.auth.uid
+          ) ||
+          (
+            request.resource.data.role in ['caregiver', 'family'] &&
+            exists(/databases/$(database)/documents/families/default/codeIndex/$(request.resource.data.codeUsed)) &&
+            get(/databases/$(database)/documents/families/default/codeIndex/$(request.resource.data.codeUsed)).data.role == request.resource.data.role
+          )
+        );
+
+        allow update, delete: if isOwner();
+      }
+
+      match /codeIndex/{code} {
+        allow get: if isSignedIn();
+        allow write: if isOwner();
+      }
+
+      match /rules/{ruleId} {
+        allow read: if isMember();
+        allow write: if isOwner();
+      }
+
+      match /journal/{entryId} {
+        allow read: if isMember();
+        allow write: if isOwnerOrCaregiver();
+      }
+
+      match /messages/{msgId} {
+        allow read: if isMember();
+        allow create: if isMember() && request.resource.data.senderUid == request.auth.uid;
+        allow update, delete: if isOwner();
+      }
+    }
+  }
+}
